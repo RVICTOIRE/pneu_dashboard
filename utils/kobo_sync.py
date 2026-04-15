@@ -9,15 +9,18 @@ import os
 import logging
 import requests
 from datetime import datetime
+import streamlit as st # <--- Ajouté
 from dotenv import load_dotenv
 from utils.database import upsert_collectes
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-KOBO_API_TOKEN = os.getenv("KOBO_API_TOKEN")
-KOBO_ASSET_UID = os.getenv("KOBO_ASSET_UID")
-KOBO_BASE_URL  = os.getenv("KOBO_BASE_URL", "https://kf.kobotoolbox.org")
+# --- CORRECTION ICI ---
+KOBO_API_TOKEN = st.secrets.get("KOBO_API_TOKEN") or os.getenv("KOBO_API_TOKEN")
+KOBO_ASSET_UID = st.secrets.get("KOBO_ASSET_UID") or os.getenv("KOBO_ASSET_UID")
+KOBO_BASE_URL  = st.secrets.get("KOBO_BASE_URL") or os.getenv("KOBO_BASE_URL", "https://kf.kobotoolbox.org")
+# ----------------------
 
 # ── Mapping noms de champs KoboToolbox → colonnes Neon ────────────
 DEPARTEMENT_LABELS = {

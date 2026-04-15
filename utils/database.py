@@ -5,13 +5,17 @@ Gestion de la connexion Neon (PostgreSQL) et initialisation du schéma.
 
 import os
 import logging
+import streamlit as st # <--- Ajouté
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("NEON_DATABASE_URL")
+# --- CORRECTION ICI ---
+# Cherche d'abord dans les secrets Streamlit, sinon dans les variables d'environnement
+DATABASE_URL = st.secrets.get("NEON_DATABASE_URL") or os.getenv("NEON_DATABASE_URL")
+# ----------------------
 
 
 def get_engine():
