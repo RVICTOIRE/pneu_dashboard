@@ -113,7 +113,7 @@ except Exception as e:
 # ── Sidebar ───────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### ♻️ SONAGED")
-    st.markdown("**Dispositif de ramassage de pneus usagés**")
+    st.markdown("**Dispositif de Ramassage de Pneus**")
     st.markdown("---")
 
     # Synchronisation KoboToolbox
@@ -147,12 +147,24 @@ with st.sidebar:
     # Filtre date
     min_date = df_full["date_collecte"].min().date()
     max_date = df_full["date_collecte"].max().date()
-    date_range = st.date_input(
-        "Période",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=max_date,
-    )
+
+    st.markdown("**Période**")
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        date_start = st.date_input(
+            "Du", value=min_date,
+            min_value=min_date, max_value=max_date,
+            key="date_start",
+        )
+    with col_d2:
+        date_end = st.date_input(
+            "Au", value=max_date,
+            min_value=min_date, max_value=max_date,
+            key="date_end",
+        )
+    # Sécurité : si l'utilisateur inverse les dates
+    if date_start > date_end:
+        date_start, date_end = date_end, date_start
 
     # Filtre département
     depts = ["Tous"] + sorted(df_full["departement"].dropna().unique().tolist())
@@ -170,19 +182,29 @@ with st.sidebar:
 
 # ── Filtrage ──────────────────────────────────────────────────────
 df = df_full.copy()
-if len(date_range) == 2:
-    d0, d1 = pd.Timestamp(date_range[0]), pd.Timestamp(date_range[1])
-    df = df[(df["date_collecte"] >= d0) & (df["date_collecte"] <= d1)]
+d0, d1 = pd.Timestamp(date_start), pd.Timestamp(date_end)
+df = df[(df["date_collecte"] >= d0) & (df["date_collecte"] <= d1)]
 if dept_sel != "Tous":
     df = df[df["departement"] == dept_sel]
 if etat_sel != "Tous":
     df = df[df["etat_site"] == etat_sel]
 
 # ── Header ────────────────────────────────────────────────────────
-st.markdown("""
+is_full_period = (date_start == min_date and date_end == max_date)
+badge = (
+    "<span style='background:#2e7d52;padding:2px 10px;border-radius:10px;font-size:0.8rem'>Toute la période</span>"
+    if is_full_period else
+    "<span style='background:#e65100;padding:2px 10px;border-radius:10px;font-size:0.8rem'>⚡ Filtre actif</span>"
+)
+st.markdown(f"""
 <div class="main-header">
-  <h1>♻️ Dispositif de ramassage de pneus usagés  SONAGED - SOCOCIM</h1>
-  <p>Tableau de bord de suivi opérationnel · Région de Dakar</p>
+  <h1>♻️ Dispositif de ramassage de pneus usagés — SONAGED · SOCOCIM</h1>
+  <p>Tableau de bord de suivi opérationnel · Région de Dakar &nbsp;·&nbsp;
+     📅 <strong style="color:#e8f5e9">{date_start.strftime('%d/%m/%Y')}</strong>
+     &nbsp;→&nbsp;
+     <strong style="color:#e8f5e9">{date_end.strftime('%d/%m/%Y')}</strong>
+     &nbsp;&nbsp;{badge}
+  </p>
 </div>
 """, unsafe_allow_html=True)
 
