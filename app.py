@@ -8,7 +8,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-from utils.database import init_db
+from utils.database import init_db, init_db_ctt
 from utils.data_loader import load_collectes, load_kpis
 
 # ── Config page ───────────────────────────────────────────────────
@@ -105,6 +105,7 @@ st.markdown("""
 # ── Init DB ───────────────────────────────────────────────────────
 try:
     init_db()
+    init_db_ctt()
 except Exception as e:
     st.error(f"❌ Connexion Neon impossible : {e}")
     st.info("Vérifiez votre fichier `.env` et la variable `NEON_DATABASE_URL`.")
