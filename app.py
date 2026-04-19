@@ -448,6 +448,7 @@ st.dataframe(
         "pneus_collectes": "Pneus",
         "taux_traitement": "Taux (%)",
         "mode_collecte":   "Mode",
+        "site_transit":    "Site transit",
         "etat_site":       "État site",
         "type_probleme":   "Problème",
     }),
