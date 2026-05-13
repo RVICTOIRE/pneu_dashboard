@@ -513,7 +513,7 @@ else:
         img_bytes = resp.content
         mime_type = resp.headers.get("Content-Type", "image/jpeg")
 
-        st.image(img_bytes, caption=choix, use_container_width=True)
+        st.image(img_bytes, caption=choix, use_column_width=True)
 
         # Extension depuis le Content-Type ou l'URL
         ext = mime_type.split("/")[-1].split(";")[0].strip() or "jpg"
