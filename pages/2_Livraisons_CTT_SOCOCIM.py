@@ -492,7 +492,7 @@ else:
         (c1, pd.Timestamp(row["date_livraison"]).strftime("%d/%m/%Y"), "Date"),
         (c2, str(row.get("provenance", "—")),                          "Provenance"),
         (c3, str(int(row["nombre_pneus"])),                            "Pneus"),
-        (c4, str(row.get("superviseur", "—")),                         "Superviseur"),
+        (c4, f"{row.get('tonnage', 0):.2f} t",                         "Tonnage"),
     ]
     for col, val, label in recap:
         with col:
