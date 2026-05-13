@@ -3,10 +3,12 @@ pages/2_Livraisons_CTT_SOCOCIM.py
 Dashboard de suivi des livraisons de pneus usagés : Départements → CTT → SOCOCIM
 """
 
+import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import requests
 from datetime import datetime
 
 from utils.database import init_db_ctt
@@ -450,3 +452,83 @@ st.download_button(
     file_name=f"livraisons_ctt_{datetime.now().strftime('%Y%m%d')}.csv",
     mime="text/csv",
 )
+
+# ── Bons de livraison ─────────────────────────────────────────────
+st.markdown('<p class="section-title">📄 Bons de Livraison</p>', unsafe_allow_html=True)
+
+KOBO_TOKEN = st.secrets.get("KOBO_API_TOKEN") or os.getenv("KOBO_API_TOKEN", "")
+
+df_bons = df[df["bon_livraison_url"].notna() & (df["bon_livraison_url"] != "")].copy() if "bon_livraison_url" in df.columns else pd.DataFrame()
+
+if df_bons.empty:
+    st.info("Aucun bon de livraison disponible pour la période sélectionnée. Lancez une synchronisation pour récupérer les images.")
+else:
+    df_bons["_label"] = df_bons.apply(
+        lambda r: (
+            f"{pd.Timestamp(r['date_livraison']).strftime('%d/%m/%Y')}  ·  "
+            f"{r.get('provenance', '—')}  ·  "
+            f"{int(r['nombre_pneus'])} pneus  ·  "
+            f"{r.get('superviseur', '—')}"
+        ),
+        axis=1,
+    )
+
+    st.markdown(
+        f"<small style='color:#6b7fa0'>{len(df_bons)} bon(s) de livraison disponible(s) sur la période sélectionnée.</small>",
+        unsafe_allow_html=True,
+    )
+
+    choix = st.selectbox(
+        "Sélectionner un bon de livraison",
+        options=df_bons["_label"].tolist(),
+        key="bon_select",
+    )
+    idx = df_bons["_label"].tolist().index(choix)
+    row = df_bons.iloc[idx]
+
+    # Récapitulatif de la livraison sélectionnée
+    c1, c2, c3, c4 = st.columns(4)
+    recap = [
+        (c1, pd.Timestamp(row["date_livraison"]).strftime("%d/%m/%Y"), "Date"),
+        (c2, str(row.get("provenance", "—")),                          "Provenance"),
+        (c3, str(int(row["nombre_pneus"])),                            "Pneus"),
+        (c4, str(row.get("superviseur", "—")),                         "Superviseur"),
+    ]
+    for col, val, label in recap:
+        with col:
+            st.markdown(f"""
+                <div class="kpi-card">
+                    <div class="kpi-value" style="font-size:1.3rem">{val}</div>
+                    <div class="kpi-label">{label}</div>
+                </div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:0.8rem'></div>", unsafe_allow_html=True)
+
+    # Récupération et affichage de l'image
+    image_url = row["bon_livraison_url"]
+    try:
+        headers = {"Authorization": f"Token {KOBO_TOKEN}"} if KOBO_TOKEN else {}
+        resp = requests.get(image_url, headers=headers, timeout=20)
+        resp.raise_for_status()
+        img_bytes = resp.content
+        mime_type = resp.headers.get("Content-Type", "image/jpeg")
+
+        st.image(img_bytes, caption=choix, use_container_width=True)
+
+        # Extension depuis le Content-Type ou l'URL
+        ext = mime_type.split("/")[-1].split(";")[0].strip() or "jpg"
+        if ext == "jpeg":
+            ext = "jpg"
+        date_str = pd.Timestamp(row["date_livraison"]).strftime("%Y%m%d")
+        prov_str = str(row.get("provenance", "ctt"))[:6].lower().replace(" ", "_")
+        st.download_button(
+            label="📥 Télécharger le bon de livraison",
+            data=img_bytes,
+            file_name=f"bon_livraison_{date_str}_{prov_str}.{ext}",
+            mime=mime_type,
+            use_container_width=True,
+        )
+    except requests.exceptions.HTTPError as e:
+        st.warning(f"Image inaccessible (erreur {e.response.status_code}). Vérifiez le token KoboToolbox.")
+    except Exception as e:
+        st.error(f"Impossible de charger l'image : {e}")

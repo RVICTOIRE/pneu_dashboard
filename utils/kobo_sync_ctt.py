@@ -108,6 +108,23 @@ def _calc_duree(heure_arrivee, heure_depart):
         return None
 
 
+def _get_attachment_url(submission: dict, field_name: str) -> str | None:
+    """
+    Retourne l'URL de téléchargement de la pièce jointe pour un champ image KoboToolbox.
+    KoboToolbox stocke le nom de fichier dans le champ et l'URL réelle dans _attachments.
+    """
+    filename = submission.get(field_name, "") or ""
+    if not filename:
+        return None
+    attachments = submission.get("_attachments", []) or []
+    for att in attachments:
+        att_filename = att.get("filename", "")
+        # KoboToolbox stocke le chemin complet (ex: "user/attachments/image.jpg")
+        if att_filename.endswith(filename) or filename in att_filename:
+            return att.get("download_url") or att.get("url")
+    return None
+
+
 def _transform(submission: dict) -> dict:
     """Transforme une soumission KoboToolbox CTT en dict PostgreSQL."""
 
@@ -128,45 +145,45 @@ def _transform(submission: dict) -> dict:
     heure_depart  = _parse_time(submission.get("Heure_de_d_part"))
     duree         = _calc_duree(heure_arrivee, heure_depart)
 
-
-
-    # --- GESTION DU TONNAGE (Nouveau nom de colonne Kobo) ---
-    # On récupère 'Poids_total_en_tonne_t'
+    # --- GESTION DU TONNAGE ---
     tonnage_raw = (
-        submission.get("Tonnage") or 
-        submission.get("poids_total_en_tonne_t") or 
+        submission.get("Tonnage") or
+        submission.get("poids_total_en_tonne_t") or
         submission.get("tonnage")
     )
     def _safe_float(val):
         if val is None or str(val).strip() == "": return 0.0
         try:
             return float(str(val).replace(',', '.').strip())
-        except:
+        except Exception:
             return 0.0
 
     tonnage_val = _safe_float(tonnage_raw)
     try:
-        # On remplace la virgule par un point si nécessaire et on convertit en float
         tonnage_val = float(str(tonnage_raw).replace(',', '.')) if tonnage_raw else 0.0
     except (ValueError, TypeError):
         tonnage_val = 0.0
 
+    # --- BON DE LIVRAISON (photo uploadée dans le champ Bons_SOCOCIM) ---
+    bon_url = _get_attachment_url(submission, "Bons_SOCOCIM")
+
     return {
-        "id":               str(submission.get("_id", submission.get("_uuid", ""))),
-        "date_livraison":   _safe_date(submission.get("Date")),
-        "start_time":       _safe_dt(submission.get("start")),
-        "end_time":         _safe_dt(submission.get("end")),
-        "provenance":       PROVENANCE_LABELS.get(provenance_key, provenance_key),
-        "superviseur":      submission.get("Superviseur", "") or "",
-        "type_vehicule":    vehicule,
-        "capacite":         CAPACITE_LABELS.get(capacite_key, capacite_key),
-        "taux_remplissage": remplissage_label,
-        "nombre_pneus":     _safe_int(submission.get("Nombre_de_pneus")),
-        "tonnage":          tonnage_val, # Enregistré dans la colonne 'tonnage' de Neon
-        "heure_arrivee":    heure_arrivee,
-        "heure_depart":     heure_depart,
-        "duree_minutes":    duree,
-        "observation":      submission.get("Observation", "") or "",
+        "id":                 str(submission.get("_id", submission.get("_uuid", ""))),
+        "date_livraison":     _safe_date(submission.get("Date")),
+        "start_time":         _safe_dt(submission.get("start")),
+        "end_time":           _safe_dt(submission.get("end")),
+        "provenance":         PROVENANCE_LABELS.get(provenance_key, provenance_key),
+        "superviseur":        submission.get("Superviseur", "") or "",
+        "type_vehicule":      vehicule,
+        "capacite":           CAPACITE_LABELS.get(capacite_key, capacite_key),
+        "taux_remplissage":   remplissage_label,
+        "nombre_pneus":       _safe_int(submission.get("Nombre_de_pneus")),
+        "tonnage":            tonnage_val,
+        "heure_arrivee":      heure_arrivee,
+        "heure_depart":       heure_depart,
+        "duree_minutes":      duree,
+        "observation":        submission.get("Observation", "") or "",
+        "bon_livraison_url":  bon_url,
     }
 
 

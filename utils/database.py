@@ -80,6 +80,7 @@ def init_db():
         heure_depart         TIME,
         duree_minutes        INTEGER,
         observation          TEXT,
+        bon_livraison_url    TEXT,
         created_at           TIMESTAMP DEFAULT NOW()
     );
 
@@ -88,10 +89,15 @@ def init_db():
     CREATE INDEX IF NOT EXISTS idx_collectes_etat_site ON collectes(etat_site);
     CREATE INDEX IF NOT EXISTS idx_ctt_date ON livraisons_ctt(date_livraison);
     """
+
+    migration_ddl = """
+    ALTER TABLE livraisons_ctt ADD COLUMN IF NOT EXISTS bon_livraison_url TEXT;
+    """
     
     try:
         with engine.connect() as conn:
             conn.execute(text(ddl))
+            conn.execute(text(migration_ddl))
             conn.commit()
         logger.info("✅ Schéma de base de données initialisé avec succès.")
     except Exception as e:
@@ -138,20 +144,21 @@ def upsert_livraisons_ctt(records: list[dict]):
     engine = get_engine()
     sql = text("""
         INSERT INTO livraisons_ctt (
-            id, date_livraison, start_time, end_time, provenance, superviseur, 
+            id, date_livraison, start_time, end_time, provenance, superviseur,
             type_vehicule, capacite, taux_remplissage, nombre_pneus, tonnage,
-            heure_arrivee, heure_depart, duree_minutes, observation
+            heure_arrivee, heure_depart, duree_minutes, observation, bon_livraison_url
         ) VALUES (
-            :id, :date_livraison, :start_time, :end_time, :provenance, :superviseur, 
+            :id, :date_livraison, :start_time, :end_time, :provenance, :superviseur,
             :type_vehicule, :capacite, :taux_remplissage, :nombre_pneus, :tonnage,
-            :heure_arrivee, :heure_depart, :duree_minutes, :observation
+            :heure_arrivee, :heure_depart, :duree_minutes, :observation, :bon_livraison_url
         )
         ON CONFLICT (id) DO UPDATE SET
             date_livraison = EXCLUDED.date_livraison,
             nombre_pneus = EXCLUDED.nombre_pneus,
             tonnage = EXCLUDED.tonnage,
             taux_remplissage = EXCLUDED.taux_remplissage,
-            observation = EXCLUDED.observation;
+            observation = EXCLUDED.observation,
+            bon_livraison_url = EXCLUDED.bon_livraison_url;
     """)
     with engine.connect() as conn:
         conn.execute(sql, records)
